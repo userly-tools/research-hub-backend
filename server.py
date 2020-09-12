@@ -76,5 +76,70 @@ class FormResource(Resource):
 
 api.add_resource(FormResource, '/forms/<int:form_id>')
 
+# ----------------------------------------------------------------
+
+class FormObject(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    qtype = db.Column(db.String(50))
+    question = db.Column(db.String(1024))
+
+    options = db.Column(db.String(1024))
+    is_required = db.Column(db.String(1))
+
+    def __repr__(self):
+        return '<FormObject %s>' % self.qtype
+
+class FormObjectSchema(ma.Schema):
+    class Meta:
+        fields = ('id', 'qtype', 'question', 'options', 'is_required')
+
+form_object_schema = FormObjectSchema()
+form_objects_schema = FormObjectSchema(many=True)
+
+class FormObjectListResource(Resource):
+    def get(self):
+        forms = FormObject.query.all()
+        return form_objects_schema.dump(forms)
+
+    def post(self):
+        new_form_object = FormObject()
+
+        fields = FormObjectSchema.Meta.fields
+
+        for key in fields:
+            if key in request.json:
+                setattr(new_form_object, key, request.json[key])
+
+        db.session.add(new_form_object)
+        db.session.commit()
+        return form_object_schema.dump(new_form_object)
+
+api.add_resource(FormObjectListResource, '/form_objects')
+
+class FormObjectResource(Resource):
+    def get(self, form_object_id):
+        form_object = FormObject.query.get_or_404(form_object_id)
+        return form_object_schema.dump(form_object)
+
+    def patch(self, form_object_id):
+        form_object = FormObject.query.get_or_404(form_object_id)
+
+        fields = FormObjectSchema.Meta.fields
+
+        for key in fields:
+            if key in request.json:
+                setattr(form_object, key, request.json[key])
+
+        db.session.commit()
+        return form_object_schema.dump(form_object)
+
+    def delete(self, form_object_id):
+        form_object = FormObject.query.get_or_404(form_object_id)
+        db.session.delete(form_object)
+        db.session.commit()
+        return '', 204
+
+api.add_resource(FormObjectResource, '/form_objects/<int:form_object_id>')
+
 if __name__ == '__main__':
     app.run(debug=True)
