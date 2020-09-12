@@ -206,4 +206,4 @@ class PersonResource(Resource):
 api.add_resource(PersonResource, '/persons/<int:person_id>')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
