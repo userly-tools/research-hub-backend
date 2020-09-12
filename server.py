@@ -51,5 +51,28 @@ class FormListResource(Resource):
 
 api.add_resource(FormListResource, '/forms')
 
+class FormResource(Resource):
+    def get(self, form_id):
+        form = Form.query.get_or_404(form_id)
+        return form_schema.dump(form)
+
+    def patch(self, form_id):
+        form = Form.query.get_or_404(form_id)
+
+        fields = FormSchema.Meta.fields
+
+        for key in fields:
+            if key in request.json:
+                setattr(form, key, request.json[key])
+
+        db.session.commit()
+        return form_schema.dump(form)
+
+    def delete(self, form_id):
+        form = Form.query.get_or_404(form_id)
+        db.session.delete(form)
+        db.session.commit()
+        return '', 204
+
 if __name__ == '__main__':
     app.run(debug=True)
