@@ -11,5 +11,18 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 api = Api(app)
 
+class Form(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(50))
+    desc = db.Column(db.String(1024))
+
+    researcher_uname = db.Column(db.String(16))
+
+    components = db.Column(db.String(4096))
+    responses = db.Column(db.String(4096))
+
+    def __repr__(self):
+        return '<Form %s>' % self.title
+
 if __name__ == '__main__':
     app.run(debug=True)
