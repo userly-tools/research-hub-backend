@@ -49,5 +49,7 @@ class FormListResource(Resource):
         db.session.commit()
         return form_schema.dump(new_form)
 
+api.add_resource(FormListResource, '/forms')
+
 if __name__ == '__main__':
     app.run(debug=True)
