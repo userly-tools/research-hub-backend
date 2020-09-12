@@ -74,5 +74,7 @@ class FormResource(Resource):
         db.session.commit()
         return '', 204
 
+api.add_resource(FormResource, '/forms/<int:form_id>')
+
 if __name__ == '__main__':
     app.run(debug=True)
