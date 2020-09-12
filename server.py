@@ -28,5 +28,26 @@ class FormSchema(ma.Schema):
     class Meta:
         fields = ('id', 'title', 'desc', 'researcher_uname', 'components', 'responses')
 
+form_schema = FormSchema()
+forms_schema = FormSchema(many=True)
+
+class FormListResource(Resource):
+    def get(self):
+        forms = Form.query.all()
+        return forms_schema.dump(forms)
+
+    def post(self):
+        new_form = Form()
+
+        fields = FormSchema.Meta.fields
+
+        for key in fields:
+            if key in request.json:
+                setattr(form, key, request.json[key])
+
+        db.session.add(new_form)
+        db.session.commit()
+        return form_schema.dump(new_form)
+
 if __name__ == '__main__':
     app.run(debug=True)
