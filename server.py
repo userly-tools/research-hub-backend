@@ -24,5 +24,9 @@ class Form(db.Model):
     def __repr__(self):
         return '<Form %s>' % self.title
 
+class FormSchema(ma.Schema):
+    class Meta:
+        fields = ('id', 'title', 'desc', 'researcher_uname', 'components', 'responses')
+
 if __name__ == '__main__':
     app.run(debug=True)
