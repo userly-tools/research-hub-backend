@@ -141,5 +141,69 @@ class FormObjectResource(Resource):
 
 api.add_resource(FormObjectResource, '/form_objects/<int:form_object_id>')
 
+# ----------------------------------------------------------------
+
+class Person(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    uname = db.Column(db.String(16))
+    name = db.Column(db.String(32))
+
+    linked_users = db.Column(db.String(4096))
+    linked_forms = db.Column(db.String(4096))
+
+    def __repr__(self):
+        return '<Person %s>' % self.uname
+
+class PersonSchema(ma.Schema):
+    class Meta:
+        fields = ('id', 'uname', 'name', 'linked_users', 'linked_forms')
+
+person_schema = PersonSchema()
+persons_schema = PersonSchema(many=True)
+
+class PersonListResource(Resource):
+    def get(self):
+        persons = Person.query.all()
+        return persons_schema.dump(persons)
+
+    def post(self):
+        new_person = Person()
+
+        fields = PersonSchema.Meta.fields
+
+        for key in fields:
+            if key in request.json:
+                setattr(new_person, key, request.json[key])
+        db.session.add(new_person)
+        db.session.commit()
+        return person_schema.dump(new_person)
+
+api.add_resource(PersonListResource, '/persons')
+
+class PersonResource(Resource):
+    def get(self, person_id):
+        person = Person.query.get_or_404(person_id)
+        return person_schema.dump(person)
+
+    def patch(self, person_id):
+        person = Person.query.get_or_404(person_id)
+
+        fields = PersonSchema.Meta.fields
+
+        for key in fields:
+            if key in request.json:
+                setattr(person, key, request.json[key])
+
+        db.session.commit()
+        return person_schema.dump(person)
+
+    def delete(self, person_id):
+        person = Person.query.get_or_404(person_id)
+        db.session.delete(person)
+        db.session.commit()
+        return '', 204
+
+api.add_resource(PersonResource, '/persons/<int:person_id>')
+
 if __name__ == '__main__':
     app.run(debug=True)
