@@ -1,14 +1,32 @@
-# research-hub-backend
+# Userly Tools Backend
 
 The REST API for Userly research hub.
 
-## Usage
+## Setup
+
+### 1.Initialize the db
+
+```bash
+rohan@rohan-X556UQK ~/D/f/research-hub-backend (master)> python                                                                                                                            (fosshack) 
+Python 3.8.5 (default, Sep  4 2020, 07:30:14) 
+[GCC 7.3.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from server import db
+/home/rohan/anaconda3/envs/fosshack/lib/python3.8/site-packages/flask_sqlalchemy/__init__.py:833: FSADeprecationWarning: SQLALCHEMY_TRACK_MODIFICATIONS adds significant overhead and will be disabled by default in the future.  Set it to True or False to suppress this warning.
+  warnings.warn(FSADeprecationWarning(
+>>> db.create_all()
+```
+### 2. Start the server!
+
+```bash
+python server.py
+```
+
+## API Usage
 
 ### Forms
 
 Create a form
-
-
 ```bash
 curl "http://localhost:5000/forms" 
 -X POST \
@@ -44,6 +62,9 @@ curl "http://localhost:5000/forms"
    ]
 }'
 ```
+
+Similarly you can do DELETE, PATCH and GET requests
+
 ### Persons
 
 Create a user
@@ -54,6 +75,7 @@ curl "http://localhost:5000/persons"
 -H "Content-Type:application/json" \
 -d {"uname":"admin","name":"UserlyTeam"}'
 ```
+Here as well you can do DELETE, PATCH and GET requests
 
 ## Credits
 
