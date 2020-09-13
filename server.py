@@ -15,107 +15,33 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 api = Api(app)
 
-# Delete database file if it exists currently
-# if os.path.exists("data/userly.db"):
-#     os.remove("data/userly.db")
-
-# reorder! formobj then form then person
-
-class Form(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(50))
-    desc = db.Column(db.String(1024))
-    num_participants = db.Column(db.Integer)
-    tag = db.Column(db.String(20))
-    incentive = db.Column(db.String(560))
-    progress = db.Column(db.Integer)
-
-    # researcher_uname = db.Column(db.String(16),db.ForeignKey("person.id"))
-    person_uname = db.Column(db.String(16), db.ForeignKey('person.uname'))
-    person = db.relationship('Person',backref='forms')
-
-    components = db.Column(db.String(4096))
-    responses = db.Column(db.String(4096))
-
-    def __repr__(self):
-        return '<Form %s>' % self.title
-
-class FormSchema(ma.SQLAlchemySchema):
-    class Meta:
-        model = Form
-        include_fk = True
-        fields = ('id', 'title', 'desc', 'person_uname', 'components', 'responses',
-        'num_participants', 'tag', 'incentive', 'progress')
-
-
-form_schema = FormSchema()
-forms_schema = FormSchema(many=True)
-
-class FormListResource(Resource):
-    def get(self):
-        forms = Form.query.all()
-        # print(forms)
-        return forms_schema.dump(forms)
-
-    def post(self):
-        new_form = Form()
-
-        fields = FormSchema.Meta.fields
-
-        for key in fields:
-            if key in request.json:
-                setattr(new_form, key, request.json[key])
-        
-        p = Person.query.get_or_404(new_form.person_uname)
-        p.forms.append(new_form)
-
-        db.session.add(new_form)
-        db.session.commit()
-        return form_schema.dump(new_form)
-
-api.add_resource(FormListResource, '/forms')
-
-class FormResource(Resource):
-    def get(self, form_id):
-        form = Form.query.get_or_404(form_id)
-        return form_schema.dump(form)
-
-    def patch(self, form_id):
-        form = Form.query.get_or_404(form_id)
-
-        fields = FormSchema.Meta.fields
-
-        for key in fields:
-            if key in request.json:
-                setattr(form, key, request.json[key])
-
-        db.session.commit()
-        return form_schema.dump(form)
-
-    def delete(self, form_id):
-        form = Form.query.get_or_404(form_id)
-        db.session.delete(form)
-        db.session.commit()
-        return '', 204
-
-api.add_resource(FormResource, '/forms/<int:form_id>')
-
 # ----------------------------------------------------------------
 
 class FormObject(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    sort_id = db.Column(db.Integer)
     qtype = db.Column(db.String(50))
     question = db.Column(db.String(1024))
 
     options = db.Column(db.String(1024))
-    is_required = db.Column(db.Boolean)
+    is_required = db.Column(db.String)
 
+    parent_form_id = db.Column(db.Integer,db.ForeignKey('form.id'))
+    form = db.relationship('Form',backref='components')
+    def __init__(self,sort_id,is_required,options,question,qtype):
+        self.is_required = is_required
+        self.options = options
+        self.question = question
+        self.qtype = qtype
+        self.sort_id = sort_id
     def __repr__(self):
         return '<FormObject %s>' % self.qtype
 
-class FormObjectSchema(ma.Schema):
+class FormObjectSchema(ma.SQLAlchemySchema):
     class Meta:
-        fields = ('id', 'qtype', 'question', 'options', 'is_required')
+        model = FormObject
+        include_fk = True
+        fields = ('id', 'qtype', 'question', 'options', 'is_required', 'parent_form_id')
 
 form_object_schema = FormObjectSchema()
 form_objects_schema = FormObjectSchema(many=True)
@@ -165,6 +91,89 @@ class FormObjectResource(Resource):
 
 api.add_resource(FormObjectResource, '/form_objects/<int:form_object_id>')
 
+
+class Form(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(50))
+    desc = db.Column(db.String(1024))
+    num_participants = db.Column(db.Integer)
+    tag = db.Column(db.String(20))
+    incentive = db.Column(db.String(560))
+    progress = db.Column(db.Integer)
+
+    person_uname = db.Column(db.String(16), db.ForeignKey('person.uname'))
+    person = db.relationship('Person',backref='forms')
+
+    responses = db.Column(db.String(4096))
+
+    def __repr__(self):
+        return '<Form %s>' % self.title
+
+class FormSchema(ma.SQLAlchemySchema):
+    class Meta:
+        model = Form
+        include_fk = True
+        fields = ('id', 'title', 'desc', 'person_uname', 'responses',
+        'num_participants', 'tag', 'incentive', 'progress')
+    # components = ma.auto_field()
+
+form_schema = FormSchema()
+forms_schema = FormSchema(many=True)
+
+class FormListResource(Resource):
+    def get(self):
+        forms = Form.query.all()
+        return forms_schema.dump(forms)
+
+    def post(self):
+        new_form = Form()
+
+        fields = FormSchema.Meta.fields
+
+        for key in fields:
+            if key in request.json:
+                setattr(new_form, key, request.json[key])
+        
+        for elem in request.json['components']:
+            new_form.components.append(FormObject(elem['id'],
+            elem['is_required'],elem['options'],elem['question'],
+            elem['type']))
+        
+        p = Person.query.get_or_404(new_form.person_uname)
+        p.forms.append(new_form)
+
+        db.session.add(new_form)
+        db.session.commit()
+        return form_schema.dump(new_form)
+
+api.add_resource(FormListResource, '/forms')
+
+class FormResource(Resource):
+    def get(self, form_id):
+        form = Form.query.get_or_404(form_id)
+        return form_schema.dump(form)
+
+    def patch(self, form_id):
+        form = Form.query.get_or_404(form_id)
+
+        fields = FormSchema.Meta.fields
+
+        for key in fields:
+            if key in request.json:
+                setattr(form, key, request.json[key])
+
+        db.session.commit()
+        return form_schema.dump(form)
+
+    def delete(self, form_id):
+        form = Form.query.get_or_404(form_id)
+        db.session.delete(form)
+        db.session.commit()
+        return '', 204
+
+api.add_resource(FormResource, '/forms/<int:form_id>')
+
+
 # ----------------------------------------------------------------
 
 class Person(db.Model):
@@ -181,24 +190,13 @@ class Person(db.Model):
 class PersonSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Person
-        # fields = ('id', 'uname', 'name', 'linked_users', 'forms')
+        fields = ('id', 'uname', 'name', 'linked_users', 'forms')
     uname = ma.auto_field()
     name = ma.auto_field()
     forms = ma.auto_field()
-    # forms = fields.Nested('PersonFormSchema', default=[], many=True)
-
-# class PersonFormSchema(ma.SQLAlchemyAutoSchema):
-#     """
-#     This class exists to get around a recursion issue
-#     """
-#     form_id = fields.Int()
-#     person_uname = fields.Str()
 
 person_schema = PersonSchema()
-# print(person_schema)
 persons_schema = PersonSchema(many=True)
-
-fields = ('id', 'uname', 'name', 'linked_users', 'forms')
 
 class PersonListResource(Resource):
     def get(self):
@@ -208,7 +206,7 @@ class PersonListResource(Resource):
     def post(self):
         new_person = Person()
 
-        # fields = PersonSchema.Meta.fields
+        fields = PersonSchema.Meta.fields
 
         for key in fields:
             if key in request.json:
@@ -227,7 +225,7 @@ class PersonResource(Resource):
     def patch(self, person_uname):
         person = Person.query.get_or_404(person_uname)
 
-        # fields = PersonSchema.Meta.fields
+        fields = PersonSchema.Meta.fields
 
         for key in fields:
             if key in request.json:
@@ -244,39 +242,15 @@ class PersonResource(Resource):
 
 api.add_resource(PersonResource, '/persons/<string:person_uname>')
 
-# class Project(db.Model):
-#     uname = db.Column(db.String(16), unique=True, primary_key=True)
-#     name = db.Column(db.String(32))
-
-#     linked_users = db.Column(db.String(4096))
-#     # linked_forms = db.Column(db.String(4096))
-
-#     def __repr__(self):
-#         print(self.forms)
-#         return '<Project %s>' % self.uname
-
-# class ProjectSchema(ma.SQLAlchemyAutoSchema):
-#     class Meta:
-#         model = Project
-#         # fields = ('id', 'uname', 'name', 'linked_users', 'forms')
-#     # uname = ma.auto_field()
-#     # name = ma.auto_field()
-#     # forms = ma.auto_field()
-
 class ProjectResource(Resource):
     def get(self, person_uname):
         person = Person.query.get_or_404(person_uname)
-        # print(type(person.forms))
         projlist = []
         for form_id in person.forms:
             projlist.append(Form.query.get_or_404(form_id.id))
-        print(projlist)
         return forms_schema.dump(projlist)
 
 api.add_resource(ProjectResource, '/projects/<string:person_uname>')
-# @app.route('/projects')
-# def get_projects():
-#     persons = Person.query.all()
 
 
 if __name__ == '__main__':
