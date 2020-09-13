@@ -28,6 +28,7 @@ class FormObject(db.Model):
 
     parent_form_id = db.Column(db.Integer,db.ForeignKey('form.id'))
     form = db.relationship('Form',backref='components')
+    
     def __init__(self,sort_id,is_required,options,question,qtype):
         self.is_required = is_required
         self.options = options
@@ -91,6 +92,16 @@ class FormObjectResource(Resource):
 
 api.add_resource(FormObjectResource, '/form_objects/<int:form_object_id>')
 
+class Person(db.Model):
+    uname = db.Column(db.String(16), primary_key=True)
+    name = db.Column(db.String(32))
+
+    linked_users = db.Column(db.String(4096))
+    # linked_forms = db.Column(db.String(4096))
+
+    def __repr__(self):
+        print(self.forms)
+        return '<Person %s>' % self.uname
 
 class Form(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -114,8 +125,8 @@ class FormSchema(ma.SQLAlchemySchema):
         model = Form
         include_fk = True
         fields = ('id', 'title', 'desc', 'person_uname', 'responses',
-        'num_participants', 'tag', 'incentive', 'progress')
-    # components = ma.auto_field()
+        'num_participants', 'tag', 'incentive', 'progress','components')
+    components = ma.auto_field()
 
 form_schema = FormSchema()
 forms_schema = FormSchema(many=True)
@@ -131,7 +142,7 @@ class FormListResource(Resource):
         fields = FormSchema.Meta.fields
 
         for key in fields:
-            if key in request.json:
+            if key in request.json and key != 'components':
                 setattr(new_form, key, request.json[key])
         
         for elem in request.json['components']:
@@ -176,16 +187,7 @@ api.add_resource(FormResource, '/forms/<int:form_id>')
 
 # ----------------------------------------------------------------
 
-class Person(db.Model):
-    uname = db.Column(db.String(16), unique=True, primary_key=True)
-    name = db.Column(db.String(32))
 
-    linked_users = db.Column(db.String(4096))
-    # linked_forms = db.Column(db.String(4096))
-
-    def __repr__(self):
-        print(self.forms)
-        return '<Person %s>' % self.uname
 
 class PersonSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -252,6 +254,16 @@ class ProjectResource(Resource):
 
 api.add_resource(ProjectResource, '/projects/<string:person_uname>')
 
+class FormsWithComponents(Resource):
+    def get(self, form_id):
+        form = Form.query.get_or_404(form_id)
+        complist = []
+        for form_id in form.components:
+            complist.append(FormObject.query.get_or_404(form_id.id))
+        
+        return form_objects_schema.dump(complist)
+
+api.add_resource(FormsWithComponents, '/form_components/<int:form_id>')
 
 if __name__ == '__main__':
     # Create the database
