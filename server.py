@@ -42,7 +42,7 @@ class FormObjectSchema(ma.SQLAlchemySchema):
     class Meta:
         model = FormObject
         include_fk = True
-        fields = ('id', 'qtype', 'question', 'options', 'is_required', 'parent_form_id')
+        fields = ('id', 'qtype', 'question', 'options', 'is_required', 'parent_form_id', 'sort_id')
 
 form_object_schema = FormObjectSchema()
 form_objects_schema = FormObjectSchema(many=True)
